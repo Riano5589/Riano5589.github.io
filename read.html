@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>阅读 · Riano</title>
+  <meta name="theme-color" content="#070914">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="read" class="reading">
+  <canvas id="sky" aria-hidden="true"></canvas>
+  <main id="main">
+    <header class="read-bar">
+      <a class="back" id="back" href="index.html">← 返回</a>
+      <button class="read-toggle" id="fullscreen" type="button">全屏</button>
+    </header>
+    <article class="reader" id="reader"></article>
+  </main>
+  <script src="js/stars.js"></script>
+  <script src="js/content.js"></script>
+  <script src="js/pages.js"></script>
+  <script>
+    document.getElementById("fullscreen").addEventListener("click", () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+        return;
+      }
+      document.documentElement.requestFullscreen().catch(() => {});
+    });
+  </script>
+</body>
+</html>

@@ -45,7 +45,7 @@
     textFields.hidden = state.section === "about";
     aboutFields.hidden = state.section !== "about";
     listTools.hidden = state.section === "about";
-    field("heading").textContent = state.section === "about" ? "关于" : (state.currentId ? "修改" : "新建");
+    field("heading").textContent = state.section === "about" ? "关于" : (state.currentId ? "修改" : "新的一篇");
   }
 
   function renderList() {
@@ -118,9 +118,33 @@
     if (state.section === "home") {
       field("github").value = item.github || "";
       field("body").value = item.readme || "";
+      field("body").placeholder = "可以用 Markdown。也可以上传一份 .md，把里面的图片一起选上。";
     } else {
       field("body").value = item.body || "";
+      field("body").placeholder = "直接写。换行就是换行，空一行就是新的一段。";
     }
+    refreshPreview();
+  }
+
+  function refreshPreview() {
+    const box = field("md-preview");
+    const upload = field("add-md");
+    const show = state.section === "home";
+    if (upload) upload.hidden = !show;
+    if (!box) return;
+    box.hidden = !show;
+    if (!show) return;
+    box.innerHTML = Site.renderMarkdown(field("body").value) || '<p class="empty">预览会显示在这里。</p>';
+  }
+
+  function rewriteMarkdown(text, map) {
+    return String(text).replace(/(!\[[^\]]*\]\()([^)\s]+)([^)]*\))/g, (all, open, url, rest) => {
+      if (/^https?:\/\//i.test(url) || /^media\//.test(url)) return all;
+      let clean = url.split("?")[0].split("#")[0].replace(/^<|>$/g, "");
+      try { clean = decodeURIComponent(clean); } catch (error) { /* keep the raw path */ }
+      const base = (clean.split("/").pop() || "").toLowerCase();
+      return map[base] ? open + map[base] + rest : all;
+    });
   }
 
   function openItem(id) {
@@ -191,20 +215,19 @@
     field(id).addEventListener("focus", () => { lastArea = id; });
   });
 
-  function insertMedia(src, alt) {
+  function insertMedia(src) {
     const area = field(state.section === "about" ? lastArea : "body");
     const start = area.selectionStart == null ? area.value.length : area.selectionStart;
     const end = area.selectionEnd == null ? start : area.selectionEnd;
     const chunk = (area.value.slice(0, start).endsWith("\n\n") || start === 0 ? "" : "\n\n") +
-      "![" + alt + "](" + src + ")\n\n";
+      "![](" + src + ")\n\n";
     area.value = area.value.slice(0, start) + chunk + area.value.slice(end);
     area.focus();
     state.dirty = true;
+    refreshPreview();
   }
 
-  async function upload(file) {
-    if (!file) return;
-    setStatus("正在上传…");
+  async function uploadRaw(file) {
     if (local) {
       const response = await fetch("/api/media?name=" + encodeURIComponent(file.name), {
         method: "POST",
@@ -213,12 +236,35 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "没有上传成功。");
-      insertMedia(data.src, data.type === "video" ? "视频" : "图片");
-    } else {
-      const data = await RianoAuth.uploadMedia(file);
-      insertMedia(data.src, data.type === "video" ? "视频" : "图片");
+      return data.src;
     }
+    const data = await RianoAuth.uploadMedia(file);
+    return data.src;
+  }
+
+  async function upload(file) {
+    if (!file) return;
+    setStatus("正在上传…");
+    insertMedia(await uploadRaw(file));
     setStatus("已插入到光标处。记得保存。");
+  }
+
+  async function importMarkdown(files) {
+    const list = Array.from(files || []);
+    const md = list.find((file) => /\.(md|markdown)$/i.test(file.name));
+    if (!md) {
+      setStatus("请选择一个 .md 文件。图片和视频可以和它一起选。", true);
+      return;
+    }
+    setStatus("正在读入…");
+    let text = await md.text();
+    const assets = list.filter((file) => file !== md && /\.(png|jpe?g|gif|webp|mp4|webm|mov)$/i.test(file.name));
+    const map = {};
+    for (const file of assets) map[file.name.toLowerCase()] = await uploadRaw(file);
+    field("body").value = rewriteMarkdown(text, map);
+    state.dirty = true;
+    refreshPreview();
+    setStatus(assets.length ? "已读入 Markdown，图片和视频也放进来了。记得保存。" : "已读入 Markdown。记得保存。");
   }
 
   document.querySelectorAll("[data-section]").forEach((button) => {
@@ -246,7 +292,10 @@
   });
 
   ["title", "github", "date", "body", "contact", "intro"].forEach((id) => {
-    field(id).addEventListener("input", () => { state.dirty = true; });
+    field(id).addEventListener("input", () => {
+      state.dirty = true;
+      if (id === "body") refreshPreview();
+    });
   });
 
   field("save").addEventListener("click", () => {
@@ -268,6 +317,12 @@
 
   field("query").addEventListener("input", () => renderSearch(field("query").value));
 
+  field("add-md").addEventListener("click", () => field("md-file").click());
+  field("md-file").addEventListener("change", (event) => {
+    const files = event.target.files;
+    event.target.value = "";
+    importMarkdown(files).catch((error) => setStatus(error.message, true));
+  });
   field("add-image").addEventListener("click", () => field("image-file").click());
   field("add-video").addEventListener("click", () => field("video-file").click());
   field("image-file").addEventListener("change", (event) => {

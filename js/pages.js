@@ -15,14 +15,18 @@
       return;
     }
     root.innerHTML = projects.map((item) => {
+      const href = "read.html?kind=project&id=" + encodeURIComponent(item.id);
       const link = item.github
-        ? '<p><a class="button" href="' + Site.escapeHtml(item.github) + '" rel="noopener noreferrer">GitHub</a></p>'
+        ? '<a class="button" href="' + Site.escapeHtml(item.github) + '" rel="noopener noreferrer">GitHub</a>'
         : "";
-      return '<article class="panel project" id="project-' + item.id + '">' +
-        '<div class="meta"><time>' + Site.formatDate(item.date) + "</time></div>" +
-        "<h2>" + Site.escapeHtml(item.title || "未命名项目") + "</h2>" +
+      const blurb = Site.preview(item.readme);
+      return '<article class="panel project">' +
+        '<a class="entry-link" href="' + href + '">' +
+          '<div class="meta"><time>' + Site.formatDate(item.date) + "</time></div>" +
+          "<h2>" + Site.escapeHtml(item.title || "未命名项目") + "</h2>" +
+          (blurb ? '<p class="excerpt">' + Site.escapeHtml(blurb) + "</p>" : "") +
+        "</a>" +
         link +
-        '<div class="body">' + (Site.renderBody(item.readme) || empty("还没有 README。")) + "</div>" +
         "</article>";
     }).join("");
   }
@@ -35,13 +39,15 @@
       root.innerHTML = empty("还没有碎碎念。登录后可以写。");
       return;
     }
-    root.innerHTML = notes.map((item) => (
-      '<article class="panel" id="note-' + item.id + '">' +
+    root.innerHTML = notes.map((item) => {
+      const href = "read.html?kind=note&id=" + encodeURIComponent(item.id);
+      const blurb = Site.preview(item.body);
+      return '<a class="post-card" href="' + href + '">' +
         '<div class="meta"><time>' + Site.formatDate(item.date) + "</time></div>" +
         "<h2>" + Site.escapeHtml(Site.labelOf(item)) + "</h2>" +
-        '<div class="body">' + Site.renderBody(item.body) + "</div>" +
-      "</article>"
-    )).join("");
+        (blurb ? '<p class="excerpt">' + Site.escapeHtml(blurb) + "</p>" : "") +
+      "</a>";
+    }).join("");
   }
 
   function renderAbout(site) {
@@ -74,11 +80,38 @@
     )).join("");
   }
 
+  function renderRead(site) {
+    const root = document.getElementById("reader");
+    const params = new URLSearchParams(location.search);
+    const kind = params.get("kind");
+    const id = params.get("id");
+    const back = document.getElementById("back");
+    const item = kind === "project"
+      ? site.projects.find((entry) => entry.id === id)
+      : site.notes.find((entry) => entry.id === id);
+    if (!item || !root) {
+      if (root) root.innerHTML = "<h1>没有找到这篇</h1>";
+      return;
+    }
+    if (back) back.href = kind === "project" ? "index.html" : "notes.html";
+    document.title = Site.labelOf(item) + " · Riano";
+    const github = item.github
+      ? '<p><a class="button" href="' + Site.escapeHtml(item.github) + '" rel="noopener noreferrer">GitHub</a></p>'
+      : "";
+    const body = kind === "project" ? Site.renderMarkdown(item.readme) : Site.renderBody(item.body);
+    root.innerHTML =
+      '<div class="meta"><time>' + Site.formatDate(item.date) + "</time></div>" +
+      "<h1>" + Site.escapeHtml(Site.labelOf(item)) + "</h1>" +
+      github +
+      '<div class="body md">' + body + "</div>";
+  }
+
   Site.load().then((site) => {
     if (page === "home") renderHome(site);
     if (page === "notes") renderNotes(site);
     if (page === "about") renderAbout(site);
     if (page === "search") renderSearch(site);
+    if (page === "read") renderRead(site);
   }).catch(() => {
     const main = document.getElementById("main");
     if (main) main.insertAdjacentHTML("beforeend", empty("内容没有加载出来。"));

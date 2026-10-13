@@ -66,28 +66,130 @@
     });
   }
 
+  function safeSrc(url) {
+    const clean = String(url || "").trim().replace(/^<|>$/g, "");
+    if (/^media\/[a-zA-Z0-9._-]+$/.test(clean)) return clean;
+    if (/^https:\/\/[^\s)]+$/.test(clean)) return clean;
+    return "";
+  }
+
+  function mediaTag(src, alt) {
+    const safe = safeSrc(src);
+    if (!safe) return "";
+    if (/\.(mp4|webm|mov)$/i.test(safe)) {
+      return '<video class="media" controls playsinline src="' + escapeHtml(safe) + '"></video>';
+    }
+    return '<img class="media" src="' + escapeHtml(safe) + '" alt="' + escapeHtml(alt || "") + '">';
+  }
+
   function renderInline(text) {
-    const pattern = /!\[([^\]]*)\]\((media\/[a-zA-Z0-9._-]+)\)|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+    const pattern = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
     let html = "";
     let last = 0;
     let match;
     while ((match = pattern.exec(text))) {
       html += escapeHtml(text.slice(last, match.index)).replace(/\n/g, "<br>");
-      if (match[2]) {
-        const src = match[2];
-        const alt = escapeHtml(match[1] || "");
-        if (/\.(mp4|webm|mov)$/i.test(src)) {
-          html += '<video class="media" controls playsinline src="' + src + '"></video>';
-        } else {
-          html += '<figure class="media"><img src="' + src + '" alt="' + alt + '">' +
-            (alt ? "<figcaption>" + alt + "</figcaption>" : "") + "</figure>";
-        }
-      } else {
-        html += '<a href="' + escapeHtml(match[4]) + '" rel="noopener noreferrer">' + escapeHtml(match[3]) + "</a>";
-      }
+      if (match[2]) html += mediaTag(match[2], match[1]);
+      else html += '<a href="' + escapeHtml(match[4]) + '" rel="noopener noreferrer">' + escapeHtml(match[3]) + "</a>";
       last = match.index + match[0].length;
     }
     html += escapeHtml(text.slice(last)).replace(/\n/g, "<br>");
+    return html;
+  }
+
+  function renderMdInline(text) {
+    const pattern = /(`[^`]+`)|!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)|\[([^\]]+)\]\(([^)\s]+)\)|\*\*([^*]+)\*\*|__([^_]+)__|(^|[^*])\*([^*\n]+)\*(?!\*)/g;
+    let html = "";
+    let last = 0;
+    let match;
+    while ((match = pattern.exec(text))) {
+      html += escapeHtml(text.slice(last, match.index));
+      if (match[1]) html += "<code>" + escapeHtml(match[1].slice(1, -1)) + "</code>";
+      else if (match[3]) html += mediaTag(match[3], match[2]);
+      else if (match[5]) {
+        const href = safeSrc(match[5]) || (/^https:\/\//.test(match[5]) ? match[5] : "");
+        html += href
+          ? '<a href="' + escapeHtml(href) + '" rel="noopener noreferrer">' + escapeHtml(match[4]) + "</a>"
+          : escapeHtml(match[0]);
+      } else if (match[6] || match[7]) html += "<strong>" + escapeHtml(match[6] || match[7]) + "</strong>";
+      else html += escapeHtml(match[8] || "") + "<em>" + escapeHtml(match[9]) + "</em>";
+      last = match.index + match[0].length;
+    }
+    html += escapeHtml(text.slice(last));
+    return html;
+  }
+
+  function isBlockStart(line) {
+    return /^(```|#{1,6}\s|>|(\s*[-*+]\s)|(\s*\d+\.\s)|(-{3,}|\*{3,})\s*$)/.test(line);
+  }
+
+  function renderMarkdown(source) {
+    const lines = String(source || "").replace(/\r\n/g, "\n").split("\n");
+    let html = "";
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (/^```/.test(line)) {
+        const buf = [];
+        i += 1;
+        while (i < lines.length && !/^```/.test(lines[i])) {
+          buf.push(lines[i]);
+          i += 1;
+        }
+        i += 1;
+        html += "<pre><code>" + escapeHtml(buf.join("\n")) + "</code></pre>";
+        continue;
+      }
+      if (/^(-{3,}|\*{3,})\s*$/.test(line.trim())) {
+        html += "<hr>";
+        i += 1;
+        continue;
+      }
+      const heading = /^(#{1,6})\s+(.+)$/.exec(line);
+      if (heading) {
+        const level = heading[1].length;
+        html += "<h" + level + ">" + renderMdInline(heading[2]) + "</h" + level + ">";
+        i += 1;
+        continue;
+      }
+      if (/^>\s?/.test(line)) {
+        const buf = [];
+        while (i < lines.length && /^>\s?/.test(lines[i])) {
+          buf.push(lines[i].replace(/^>\s?/, ""));
+          i += 1;
+        }
+        html += "<blockquote>" + renderMarkdown(buf.join("\n")) + "</blockquote>";
+        continue;
+      }
+      if (/^\s*[-*+]\s+/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*[-*+]\s+/, ""));
+          i += 1;
+        }
+        html += "<ul>" + items.map((item) => "<li>" + renderMdInline(item) + "</li>").join("") + "</ul>";
+        continue;
+      }
+      if (/^\s*\d+\.\s+/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
+          i += 1;
+        }
+        html += "<ol>" + items.map((item) => "<li>" + renderMdInline(item) + "</li>").join("") + "</ol>";
+        continue;
+      }
+      if (!line.trim()) {
+        i += 1;
+        continue;
+      }
+      const buf = [];
+      while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) {
+        buf.push(lines[i]);
+        i += 1;
+      }
+      html += "<p>" + renderMdInline(buf.join(" ")) + "</p>";
+    }
     return html;
   }
 
@@ -102,10 +204,13 @@
 
   function preview(text) {
     const plain = String(text || "")
-      .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/!\[[^\]]*\]\([^)]+\)/g, " ")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/[#>*_`|-]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
-    return plain.length > 80 ? plain.slice(0, 80) + "…" : plain;
+    return plain.length > 90 ? plain.slice(0, 90) + "…" : plain;
   }
 
   function labelOf(item) {
@@ -118,11 +223,11 @@
     const hits = [];
     byDate(site.projects).forEach((item) => {
       const hay = [item.title, item.github, item.readme].join("\n").toLowerCase();
-      if (hay.includes(q)) hits.push({ section: "home", id: item.id, kind: "HOME", title: labelOf(item), href: "index.html#project-" + item.id });
+      if (hay.includes(q)) hits.push({ section: "home", id: item.id, kind: "HOME", title: labelOf(item), href: "read.html?kind=project&id=" + encodeURIComponent(item.id) });
     });
     byDate(site.notes).forEach((item) => {
       const hay = [item.title, item.body].join("\n").toLowerCase();
-      if (hay.includes(q)) hits.push({ section: "notes", id: item.id, kind: "碎碎念", title: labelOf(item), href: "notes.html#note-" + item.id });
+      if (hay.includes(q)) hits.push({ section: "notes", id: item.id, kind: "碎碎念", title: labelOf(item), href: "read.html?kind=note&id=" + encodeURIComponent(item.id) });
     });
     const aboutHay = [site.about.contact, site.about.intro].join("\n").toLowerCase();
     if (aboutHay.includes(q)) hits.push({ section: "about", id: "", kind: "关于", title: "关于", href: "about.html" });
@@ -143,6 +248,7 @@
     normalize: normalize,
     byDate: byDate,
     renderBody: renderBody,
+    renderMarkdown: renderMarkdown,
     preview: preview,
     labelOf: labelOf,
     search: search,
