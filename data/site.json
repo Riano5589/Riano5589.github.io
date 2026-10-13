@@ -3,7 +3,15 @@
     "contact": "",
     "intro": ""
   },
-  "projects": [],
+  "projects": [
+    {
+      "id": "project-20261013-zxjt",
+      "title": "演示",
+      "github": "",
+      "readme": "# ascend-abs\n\n用 Cursor 完成 CANNBot 安装，并按官方示例开发 Abs 算子（`y = |x|`，支持 float16/float32）。\n\n本机没有 Claude Code，已改用 **Cursor + install-helper 非交互安装**。\n\n## 安装结果\n\n| 插件 | 状态 |\n|------|------|\n| AscendC 算子注册调用 `ops-registry-invoke` | 已安装（30 skills / 7 agents） |\n| AscendC Kernel 直调（快速版） `ops-direct-invoke-flash` | 已安装（7 skills / 1 agent） |\n| AscendC Kernel 直调 `ops-direct-invoke` | **未装**：该插件不支持 Cursor |\n\n`install-helper.exe` 在 `%USERPROFILE%\\.cannbot\\bin`。\n\n在本仓库根目录重新安装：\n\n```powershell\n$env:Path = \"$env:USERPROFILE\\.cannbot\\bin;C:\\Users\\mozhu\\scoop\\apps\\git\\current\\usr\\bin;$env:Path\"\ninstall-helper install ops-registry-invoke --tool cursor --level project --yes\ninstall-helper install ops-direct-invoke-flash --tool cursor --level project --yes\ninstall-helper doctor\n```\n\n## 算子\n\n见 `operators/abs/` 与 `docs/abs/`。本机无 CANN/NPU，编译和真机 pytest 需到昇腾环境执行。\n",
+      "date": "2026-10-13"
+    }
+  ],
   "notes": [
     {
       "id": "note-20261013-jdza",
