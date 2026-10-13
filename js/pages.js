@@ -11,7 +11,7 @@
     if (!root) return;
     const projects = Site.byDate(site.projects);
     if (!projects.length) {
-      root.innerHTML = empty("还没有项目。登录后可以添加。");
+      root.innerHTML = "";
       return;
     }
     root.innerHTML = projects.map((item) => {
@@ -36,7 +36,7 @@
     if (!root) return;
     const notes = Site.byDate(site.notes);
     if (!notes.length) {
-      root.innerHTML = empty("还没有碎碎念。登录后可以写。");
+      root.innerHTML = "";
       return;
     }
     root.innerHTML = notes.map((item) => {
@@ -53,8 +53,8 @@
   function renderAbout(site) {
     const contact = document.getElementById("about-contact");
     const intro = document.getElementById("about-intro");
-    if (contact) contact.innerHTML = Site.renderBody(site.about.contact) || empty("还没写。登录后可以补上。");
-    if (intro) intro.innerHTML = Site.renderBody(site.about.intro) || empty("还没写。登录后可以补上。");
+    if (contact) contact.innerHTML = Site.renderBody(site.about.contact);
+    if (intro) intro.innerHTML = Site.renderBody(site.about.intro);
   }
 
   function renderSearch(site) {
@@ -64,7 +64,7 @@
     if (title) title.textContent = q ? "「" + q + "」" : "搜索";
     if (!root) return;
     if (!q.trim()) {
-      root.innerHTML = empty("输入关键词，搜索项目、碎碎念和关于。");
+      root.innerHTML = "";
       return;
     }
     const hits = Site.search(site, q);

@@ -52,7 +52,7 @@
     const root = document.getElementById("results");
     root.replaceChildren();
     if (state.section === "about") {
-      document.getElementById("count").textContent = "这一页只有一段联系方式和一段介绍";
+      document.getElementById("count").textContent = "";
       return;
     }
     const items = Site.byDate(listForSection());
@@ -118,10 +118,8 @@
     if (state.section === "home") {
       field("github").value = item.github || "";
       field("body").value = item.readme || "";
-      field("body").placeholder = "可以用 Markdown。也可以上传一份 .md，把里面的图片一起选上。";
     } else {
       field("body").value = item.body || "";
-      field("body").placeholder = "直接写。换行就是换行，空一行就是新的一段。";
     }
     refreshPreview();
   }
@@ -134,7 +132,7 @@
     if (!box) return;
     box.hidden = !show;
     if (!show) return;
-    box.innerHTML = Site.renderMarkdown(field("body").value) || '<p class="empty">预览会显示在这里。</p>';
+    box.innerHTML = Site.renderMarkdown(field("body").value);
   }
 
   function rewriteMarkdown(text, map) {
