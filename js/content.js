@@ -97,100 +97,66 @@
     return html;
   }
 
-  function renderMdInline(text) {
-    const pattern = /(`[^`]+`)|!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)|\[([^\]]+)\]\(([^)\s]+)\)|\*\*([^*]+)\*\*|__([^_]+)__|(^|[^*])\*([^*\n]+)\*(?!\*)/g;
-    let html = "";
-    let last = 0;
-    let match;
-    while ((match = pattern.exec(text))) {
-      html += escapeHtml(text.slice(last, match.index));
-      if (match[1]) html += "<code>" + escapeHtml(match[1].slice(1, -1)) + "</code>";
-      else if (match[3]) html += mediaTag(match[3], match[2]);
-      else if (match[5]) {
-        const href = safeSrc(match[5]) || (/^https:\/\//.test(match[5]) ? match[5] : "");
-        html += href
-          ? '<a href="' + escapeHtml(href) + '" rel="noopener noreferrer">' + escapeHtml(match[4]) + "</a>"
-          : escapeHtml(match[0]);
-      } else if (match[6] || match[7]) html += "<strong>" + escapeHtml(match[6] || match[7]) + "</strong>";
-      else html += escapeHtml(match[8] || "") + "<em>" + escapeHtml(match[9]) + "</em>";
-      last = match.index + match[0].length;
-    }
-    html += escapeHtml(text.slice(last));
-    return html;
+  function safeHref(url) {
+    const clean = String(url || "").trim().replace(/^<|>$/g, "");
+    if (/^https:\/\/[^\s]+$/i.test(clean)) return clean;
+    if (/^mailto:[^\s]+$/i.test(clean)) return clean;
+    if (/^media\/[a-zA-Z0-9._-]+$/.test(clean)) return clean;
+    if (/^#[A-Za-z0-9._:-]*$/.test(clean)) return clean;
+    return "";
   }
 
-  function isBlockStart(line) {
-    return /^(```|#{1,6}\s|>|(\s*[-*+]\s)|(\s*\d+\.\s)|(-{3,}|\*{3,})\s*$)/.test(line);
+  function sanitizeHtml(html) {
+    if (typeof document === "undefined") return html;
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    root.querySelectorAll("script,style,iframe,object,embed,form,link,meta,base,svg").forEach((node) => node.remove());
+    root.querySelectorAll("*").forEach((node) => {
+      Array.from(node.attributes).forEach((attr) => {
+        const name = attr.name.toLowerCase();
+        const value = attr.value || "";
+        if (name.startsWith("on") || name === "srcdoc" || name === "style") {
+          node.removeAttribute(attr.name);
+          return;
+        }
+        if ((name === "href" || name === "src") && !safeHref(value) && !safeSrc(value)) {
+          node.removeAttribute(attr.name);
+        }
+      });
+    });
+    return root.innerHTML;
+  }
+
+  let markdownReady = false;
+
+  function ensureMarkdown() {
+    if (markdownReady || !window.marked || !window.marked.use) return;
+    window.marked.use({
+      gfm: true,
+      breaks: false,
+      renderer: {
+        html({ text }) {
+          return escapeHtml(text);
+        },
+        image({ href, text }) {
+          return mediaTag(href, text) || escapeHtml(text || "");
+        },
+        link({ href, title, tokens }) {
+          const label = this.parser.parseInline(tokens);
+          const safe = safeHref(href);
+          if (!safe) return label;
+          const titleAttr = title ? ' title="' + escapeHtml(title) + '"' : "";
+          return '<a href="' + escapeHtml(safe) + '"' + titleAttr + ' rel="noopener noreferrer">' + label + "</a>";
+        }
+      }
+    });
+    markdownReady = true;
   }
 
   function renderMarkdown(source) {
-    const lines = String(source || "").replace(/\r\n/g, "\n").split("\n");
-    let html = "";
-    let i = 0;
-    while (i < lines.length) {
-      const line = lines[i];
-      if (/^```/.test(line)) {
-        const buf = [];
-        i += 1;
-        while (i < lines.length && !/^```/.test(lines[i])) {
-          buf.push(lines[i]);
-          i += 1;
-        }
-        i += 1;
-        html += "<pre><code>" + escapeHtml(buf.join("\n")) + "</code></pre>";
-        continue;
-      }
-      if (/^(-{3,}|\*{3,})\s*$/.test(line.trim())) {
-        html += "<hr>";
-        i += 1;
-        continue;
-      }
-      const heading = /^(#{1,6})\s+(.+)$/.exec(line);
-      if (heading) {
-        const level = heading[1].length;
-        html += "<h" + level + ">" + renderMdInline(heading[2]) + "</h" + level + ">";
-        i += 1;
-        continue;
-      }
-      if (/^>\s?/.test(line)) {
-        const buf = [];
-        while (i < lines.length && /^>\s?/.test(lines[i])) {
-          buf.push(lines[i].replace(/^>\s?/, ""));
-          i += 1;
-        }
-        html += "<blockquote>" + renderMarkdown(buf.join("\n")) + "</blockquote>";
-        continue;
-      }
-      if (/^\s*[-*+]\s+/.test(line)) {
-        const items = [];
-        while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {
-          items.push(lines[i].replace(/^\s*[-*+]\s+/, ""));
-          i += 1;
-        }
-        html += "<ul>" + items.map((item) => "<li>" + renderMdInline(item) + "</li>").join("") + "</ul>";
-        continue;
-      }
-      if (/^\s*\d+\.\s+/.test(line)) {
-        const items = [];
-        while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-          items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
-          i += 1;
-        }
-        html += "<ol>" + items.map((item) => "<li>" + renderMdInline(item) + "</li>").join("") + "</ol>";
-        continue;
-      }
-      if (!line.trim()) {
-        i += 1;
-        continue;
-      }
-      const buf = [];
-      while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) {
-        buf.push(lines[i]);
-        i += 1;
-      }
-      html += "<p>" + renderMdInline(buf.join(" ")) + "</p>";
-    }
-    return html;
+    ensureMarkdown();
+    if (!window.marked || !window.marked.parse) return "";
+    return sanitizeHtml(window.marked.parse(String(source || ""), { gfm: true, breaks: false }));
   }
 
   function renderBody(text) {

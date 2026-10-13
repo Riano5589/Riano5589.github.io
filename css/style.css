@@ -338,6 +338,43 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 500; }
 
 .md a { color: var(--accent); }
 
+.md table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0.8rem 0 1.1rem;
+}
+
+.md th,
+.md td {
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.md th { color: var(--accent); font-weight: 500; }
+
+.md td code,
+.md th code {
+  padding: 0.08rem 0.35rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.md pre,
+.md pre code {
+  white-space: pre;
+}
+
+.md del { color: var(--muted); }
+
+.md input[type="checkbox"] {
+  margin-right: 0.4rem;
+  accent-color: #d7e4ff;
+}
+
 html:fullscreen, html:-webkit-full-screen {
   background: var(--bg);
   overflow: auto;
