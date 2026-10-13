@@ -1,0 +1,7 @@
+{
+  "name": "riano-site",
+  "private": true,
+  "scripts": {
+    "start": "node editor/server.js"
+  }
+}

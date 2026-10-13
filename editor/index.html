@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>写作台 · Riano</title>
+  <meta name="theme-color" content="#070914">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/editor/editor.css">
+</head>
+<body>
+  <canvas id="sky" aria-hidden="true"></canvas>
+  <header class="studio-bar">
+    <a class="brand" href="/"><span class="brand-mark"></span>写作台</a>
+    <div class="studio-actions">
+      <a class="tool-btn" href="/" target="_blank" rel="noopener">看网站</a>
+      <button class="tool-btn" id="publish" type="button">发布到 GitHub</button>
+    </div>
+  </header>
+  <main class="studio">
+    <aside class="panel library">
+      <label for="query">查询</label>
+      <input id="query" type="search" placeholder="标题、分类或正文" autocomplete="off">
+      <button class="tool-btn primary" id="create" type="button">新建</button>
+      <p class="count" id="count"></p>
+      <div id="results"></div>
+    </aside>
+    <section class="panel composer">
+      <h1 id="heading">新建碎碎念</h1>
+      <label for="title">标题</label>
+      <input id="title" type="text" maxlength="80">
+      <div class="split">
+        <div>
+          <label for="category">分类</label>
+          <input id="category" type="text" maxlength="20" placeholder="碎碎念">
+        </div>
+        <div>
+          <label for="date">日期</label>
+          <input id="date" type="date">
+        </div>
+      </div>
+      <label for="excerpt">摘要 <span>列表里显示的那一句，可以留空</span></label>
+      <input id="excerpt" type="text" maxlength="120">
+      <div class="block-tools">
+        <button class="tool-btn" id="add-text" type="button">加一段文字</button>
+        <button class="tool-btn" id="add-image" type="button">上传图片 / GIF</button>
+        <button class="tool-btn" id="add-video" type="button">上传视频</button>
+        <input id="image-file" type="file" accept="image/jpeg,image/png,image/gif,image/webp,.gif" hidden>
+        <input id="video-file" type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" hidden>
+      </div>
+      <div id="blocks"></div>
+      <div class="composer-actions">
+        <button class="tool-btn primary" id="save" type="button">保存</button>
+        <button class="tool-btn danger" id="remove" type="button">删除这篇</button>
+      </div>
+      <p class="status" id="status" role="status"></p>
+    </section>
+  </main>
+  <script src="/js/stars.js"></script>
+  <script src="/editor/editor.js"></script>
+</body>
+</html>

@@ -25,20 +25,51 @@
     });
   }
 
+  function blocksOf(post) {
+    if (Array.isArray(post.blocks) && post.blocks.length) return post.blocks;
+    return (post.paragraphs || []).map((text) => ({ type: "text", text }));
+  }
+
+  function safeSrc(src) {
+    return typeof src === "string" && /^media\/[a-zA-Z0-9._-]+$/.test(src);
+  }
+
+  function renderBlock(block) {
+    if (block.type === "text") return "<p>" + escapeHtml(block.text) + "</p>";
+    if (block.type === "image" && safeSrc(block.src)) {
+      const alt = escapeHtml(block.alt || "");
+      return '<figure class="media"><img src="' + escapeHtml(block.src) + '" alt="' + alt + '">' +
+        (alt ? "<figcaption>" + alt + "</figcaption>" : "") + "</figure>";
+    }
+    if (block.type === "video" && safeSrc(block.src)) {
+      return '<video class="media" controls playsinline src="' + escapeHtml(block.src) + '"></video>';
+    }
+    return "";
+  }
+
+  function coverOf(post) {
+    const image = blocksOf(post).find((block) => block.type === "image" && safeSrc(block.src));
+    return image ? image.src : "";
+  }
+
   function renderList() {
     const root = document.getElementById("post-list");
     if (!root) return;
     if (!posts.length) {
-      root.innerHTML = '<p class="empty">还没有碎碎念。打开 js/posts.js 写下第一篇。</p>';
+      root.innerHTML = '<p class="empty">还没有碎碎念。</p>';
       return;
     }
-    root.innerHTML = posts.map((post) => (
-      '<a class="post-card" href="post.html?id=' + encodeURIComponent(post.id) + '">' +
-        '<div class="meta"><span class="cat">' + escapeHtml(post.category) + '</span><time>' + formatDate(post.date) + '</time></div>' +
-        '<h2>' + escapeHtml(post.title) + '</h2>' +
-        '<p class="excerpt">' + escapeHtml(post.excerpt) + '</p>' +
-      '</a>'
-    )).join("");
+    root.innerHTML = posts.map((post) => {
+      const cover = coverOf(post);
+      const hasVideo = blocksOf(post).some((block) => block.type === "video");
+      return '<a class="post-card" href="post.html?id=' + encodeURIComponent(post.id) + '">' +
+        (cover ? '<img class="post-thumb" src="' + escapeHtml(cover) + '" alt="">' : "") +
+        '<div class="meta"><span class="cat">' + escapeHtml(post.category) + '</span><time>' + formatDate(post.date) + '</time>' +
+        (hasVideo ? "<span>含视频</span>" : "") + "</div>" +
+        "<h2>" + escapeHtml(post.title) + "</h2>" +
+        '<p class="excerpt">' + escapeHtml(post.excerpt) + "</p>" +
+      "</a>";
+    }).join("");
   }
 
   function renderPost() {
@@ -56,7 +87,7 @@
       '<a class="back" href="index.html">← 回到碎碎念</a>' +
       '<div class="meta"><span class="cat">' + escapeHtml(post.category) + '</span><time>' + formatDate(post.date) + '</time></div>' +
       '<h1>' + escapeHtml(post.title) + '</h1>' +
-      '<div class="body">' + post.paragraphs.map((paragraph) => '<p>' + escapeHtml(paragraph) + '</p>').join("") + '</div>';
+      '<div class="body">' + blocksOf(post).map(renderBlock).join("") + '</div>';
   }
 
   function renderQuote() {
