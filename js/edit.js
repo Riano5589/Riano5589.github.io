@@ -45,6 +45,7 @@
     textFields.hidden = state.section === "about";
     aboutFields.hidden = state.section !== "about";
     listTools.hidden = state.section === "about";
+    field("add-md").hidden = state.section === "about";
     field("heading").textContent = state.section === "about" ? "关于" : (state.currentId ? "修改" : "新的一篇");
   }
 
@@ -126,23 +127,61 @@
 
   function refreshPreview() {
     const box = field("md-preview");
-    const upload = field("add-md");
     const show = state.section === "home";
-    if (upload) upload.hidden = !show;
     if (!box) return;
     box.hidden = !show;
     if (!show) return;
     box.innerHTML = Site.renderMarkdown(field("body").value);
   }
 
-  function rewriteMarkdown(text, map) {
-    return String(text).replace(/(!\[[^\]]*\]\()([^)\s]+)([^)]*\))/g, (all, open, url, rest) => {
-      if (/^https?:\/\//i.test(url) || /^media\//.test(url)) return all;
-      let clean = url.split("?")[0].split("#")[0].replace(/^<|>$/g, "");
-      try { clean = decodeURIComponent(clean); } catch (error) { /* keep the raw path */ }
-      const base = (clean.split("/").pop() || "").toLowerCase();
-      return map[base] ? open + map[base] + rest : all;
+  function assetPath(url) {
+    let clean = String(url || "").trim().replace(/^<|>$/g, "").split("?")[0].split("#")[0];
+    try { clean = decodeURIComponent(clean); } catch (error) { /* keep the raw path */ }
+    return clean.replace(/\\/g, "/").replace(/^\.\//, "");
+  }
+
+  function rememberAsset(map, rel, src) {
+    const parts = assetPath(rel).toLowerCase().split("/").filter(Boolean);
+    for (let i = 0; i < parts.length; i += 1) {
+      const key = parts.slice(i).join("/");
+      if (!map[key]) map[key] = src;
+    }
+  }
+
+  function mappedSrc(url, map) {
+    if (/^(https?:|data:|blob:|media\/)/i.test(url)) return "";
+    const clean = assetPath(url).toLowerCase();
+    return map[clean] || map[clean.split("/").pop()] || "";
+  }
+
+  function rewriteChunk(text, map) {
+    let next = text.replace(/(!\[[^\]]*\]\()([^)\s]+)([^)]*\))/g, (all, open, url, rest) => {
+      const src = mappedSrc(url, map);
+      return src ? open + src + rest : all;
     });
+    next = next.replace(/(\[[^\]]*\]\()([^)\s]+)([^)]*\))/g, (all, open, url, rest) => {
+      if (!/\.(png|jpe?g|gif|webp|mp4|webm|mov)$/i.test(assetPath(url))) return all;
+      const src = mappedSrc(url, map);
+      return src ? open + src + rest : all;
+    });
+    next = next.replace(/(<(?:img|video|source)\b[^>]*\bsrc=["'])([^"']+)(["'])/gi, (all, open, url, close) => {
+      const src = mappedSrc(url, map);
+      return src ? open + src + close : all;
+    });
+    next = next.replace(/<source\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi, "\n\n![]($1)\n\n");
+    next = next.replace(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi, "\n\n![]($1)\n\n");
+    next = next.replace(/<video\b([^>]*)>/gi, (all, attrs) => {
+      const src = /\bsrc=["']([^"']+)["']/i.exec(attrs);
+      return src ? "\n\n![](" + src[1] + ")\n\n" : "";
+    });
+    next = next.replace(/<\/video>/gi, "");
+    return next;
+  }
+
+  function rewriteMarkdown(text, map) {
+    return String(text).split(/(```[\s\S]*?```)/g).map((part, index) => (
+      index % 2 ? part : rewriteChunk(part, map)
+    )).join("");
   }
 
   function openItem(id) {
@@ -247,22 +286,89 @@
     setStatus("已插入到光标处。记得保存。");
   }
 
-  async function importMarkdown(files) {
-    const list = Array.from(files || []);
-    const md = list.find((file) => /\.(md|markdown)$/i.test(file.name));
-    if (!md) {
-      setStatus("请选择一个 .md 文件。图片和视频可以和它一起选。", true);
+  function isMarkdownName(name) {
+    return /\.(md|markdown)$/i.test(name || "");
+  }
+
+  function isAssetName(name) {
+    return /\.(png|jpe?g|gif|webp|mp4|webm|mov)$/i.test(name || "");
+  }
+
+  function walkEntry(entry, dir) {
+    const rel = dir ? dir + "/" + entry.name : entry.name;
+    if (entry.isFile) {
+      return new Promise((resolve) => {
+        entry.file((file) => resolve([{ file: file, path: rel }]), () => resolve([]));
+      });
+    }
+    if (!entry.isDirectory) return Promise.resolve([]);
+    return new Promise((resolve) => {
+      const reader = entry.createReader();
+      const found = [];
+      const readBatch = () => {
+        reader.readEntries((batch) => {
+          if (!batch.length) {
+            Promise.all(found.map((child) => walkEntry(child, rel))).then((groups) => {
+              resolve(groups.flat());
+            });
+            return;
+          }
+          found.push(...batch);
+          readBatch();
+        }, () => resolve([]));
+      };
+      readBatch();
+    });
+  }
+
+  async function filesFromTransfer(transfer) {
+    const items = transfer.items ? Array.from(transfer.items) : [];
+    const entries = items.map((item) => item.webkitGetAsEntry && item.webkitGetAsEntry()).filter(Boolean);
+    if (entries.length) {
+      const groups = await Promise.all(entries.map((entry) => walkEntry(entry, "")));
+      const found = groups.flat();
+      if (found.length) return found;
+    }
+    return Array.from(transfer.files || []).map((file) => ({
+      file: file,
+      path: file.webkitRelativePath || file.name
+    }));
+  }
+
+  async function importBundle(entries) {
+    if (state.section === "about") return;
+    const list = Array.from(entries || []);
+    const docs = list.filter((item) => isMarkdownName(item.file.name));
+    const assets = list.filter((item) => isAssetName(item.file.name));
+    if (!docs.length && assets.length) {
+      setStatus("正在上传…");
+      for (const item of assets) insertMedia(await uploadRaw(item.file));
+      setStatus("已插入。记得保存。");
       return;
     }
+    if (!docs.length) {
+      setStatus("需要 .md 文件。图片和视频可以一起拖进来。", true);
+      return;
+    }
+    const md = docs.find((item) => /^readme\.md$/i.test(item.file.name)) || docs[0];
     setStatus("正在读入…");
-    let text = await md.text();
-    const assets = list.filter((file) => file !== md && /\.(png|jpe?g|gif|webp|mp4|webm|mov)$/i.test(file.name));
     const map = {};
-    for (const file of assets) map[file.name.toLowerCase()] = await uploadRaw(file);
-    field("body").value = rewriteMarkdown(text, map);
+    for (const item of assets) rememberAsset(map, item.path || item.file.name, await uploadRaw(item.file));
+    let text = await md.file.text();
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    text = rewriteMarkdown(text, map);
+    field("body").value = text;
     state.dirty = true;
     refreshPreview();
-    setStatus(assets.length ? "已读入 Markdown，图片和视频也放进来了。记得保存。" : "已读入 Markdown。记得保存。");
+    const missed = [];
+    const visible = text.split(/```[\s\S]*?```/g).join("\n");
+    const pattern = /!\[[^\]]*\]\(([^)\s]+)\)|<(?:img|video|source)\b[^>]*\bsrc=["']([^"']+)["']/gi;
+    let match;
+    while ((match = pattern.exec(visible))) {
+      const url = match[1] || match[2];
+      if (url && !/^(https?:|data:|media\/)/i.test(url)) missed.push(url);
+    }
+    setStatus(missed.length ? "正文已读入。还有图片或视频没一起放进来。" : "已读入。记得保存。");
   }
 
   document.querySelectorAll("[data-section]").forEach((button) => {
@@ -317,9 +423,43 @@
 
   field("add-md").addEventListener("click", () => field("md-file").click());
   field("md-file").addEventListener("change", (event) => {
-    const files = event.target.files;
+    const files = Array.from(event.target.files || []).map((file) => ({
+      file: file,
+      path: file.webkitRelativePath || file.name
+    }));
     event.target.value = "";
-    importMarkdown(files).catch((error) => setStatus(error.message, true));
+    importBundle(files).catch((error) => setStatus(error.message, true));
+  });
+
+  const dropRoot = document.getElementById("text-fields");
+  function hasFiles(event) {
+    return event.dataTransfer && Array.from(event.dataTransfer.types || []).indexOf("Files") >= 0;
+  }
+  ["dragenter", "dragover"].forEach((name) => {
+    dropRoot.addEventListener(name, (event) => {
+      if (!hasFiles(event) || state.section === "about") return;
+      event.preventDefault();
+      dropRoot.classList.add("is-drop");
+    });
+  });
+  dropRoot.addEventListener("dragleave", (event) => {
+    if (event.relatedTarget && dropRoot.contains(event.relatedTarget)) return;
+    dropRoot.classList.remove("is-drop");
+  });
+  dropRoot.addEventListener("drop", (event) => {
+    if (!hasFiles(event) || state.section === "about") return;
+    event.preventDefault();
+    event.stopPropagation();
+    dropRoot.classList.remove("is-drop");
+    filesFromTransfer(event.dataTransfer)
+      .then((entries) => importBundle(entries))
+      .catch((error) => setStatus(error.message, true));
+  });
+  window.addEventListener("dragover", (event) => {
+    if (hasFiles(event)) event.preventDefault();
+  });
+  window.addEventListener("drop", (event) => {
+    if (hasFiles(event)) event.preventDefault();
   });
   field("add-image").addEventListener("click", () => field("image-file").click());
   field("add-video").addEventListener("click", () => field("video-file").click());

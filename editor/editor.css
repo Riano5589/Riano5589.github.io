@@ -104,6 +104,12 @@ textarea:focus {
   line-height: 1.75;
 }
 
+#text-fields.is-drop textarea {
+  outline: 2px solid rgba(215, 228, 255, 0.85);
+  outline-offset: 2px;
+  background: rgba(215, 228, 255, 0.1);
+}
+
 .tool-btn { min-height: 44px; }
 
 .new-entry {
