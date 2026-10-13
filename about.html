@@ -2,9 +2,9 @@
 <html lang="zh-Hans">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>关于 · Riano</title>
-  <meta name="description" content="关于 Riano，以及这个用来写碎碎念的小站。">
+  <meta name="description" content="关于 Riano，以及联系方式。">
   <meta name="theme-color" content="#070914">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,35 +12,27 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body data-page="about">
   <a class="skip" href="#main">跳到内容</a>
   <canvas id="sky" aria-hidden="true"></canvas>
-  <header class="nav">
-    <a class="brand" href="index.html"><span class="brand-mark"></span>Riano</a>
-    <nav class="nav-links" aria-label="站点">
-      <a href="index.html" data-nav="index.html">碎碎念</a>
-      <a href="about.html" data-nav="about.html">关于</a>
-      <a href="friends.html" data-nav="friends.html">友链</a>
-      <a href="contact.html" data-nav="contact.html">联系</a>
-    </nav>
-  </header>
+  <div id="nav-root"></div>
   <main class="wrap" id="main">
     <header class="page-head">
       <p class="kicker"><span class="star">✦</span>ABOUT</p>
-      <h1>关于我</h1>
+      <h1>关于</h1>
     </header>
     <section class="panel">
-      <p>我是 Riano，GitHub 上的名字是 Riano5589。</p>
-      <p>这里不是作品集，也不是公告栏。它用来放碎碎念：随手记下的句子、看到的东西、一时的心情。</p>
-      <p>长文和短句都可以。不想给别人看的，就先写给夜里。</p>
-      <p>想找我的话，写信到 <a href="mailto:kuichen40@gmail.com">kuichen40@gmail.com</a>。</p>
+      <h2>联系</h2>
+      <div class="body" id="about-contact"></div>
+    </section>
+    <section class="panel">
+      <h2>介绍</h2>
+      <div class="body" id="about-intro"></div>
     </section>
   </main>
-  <footer class="site-footer">
-    <span>Riano5589</span>
-    <a href="https://github.com/Riano5589">GitHub</a>
-  </footer>
-  <script src="js/site.js"></script>
   <script src="js/stars.js"></script>
+  <script src="js/content.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/pages.js"></script>
 </body>
 </html>

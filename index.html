@@ -2,44 +2,33 @@
 <html lang="zh-Hans">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Riano · 碎碎念</title>
-  <meta name="description" content="Riano 的个人碎碎念。把没处安放的句子，留在夜里。">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HOME · Riano</title>
+  <meta name="description" content="Riano 的项目。README 和 GitHub 链接。">
   <meta name="theme-color" content="#070914">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body data-page="home">
   <a class="skip" href="#main">跳到内容</a>
   <canvas id="sky" aria-hidden="true"></canvas>
-  <header class="nav">
-    <a class="brand" href="index.html"><span class="brand-mark"></span>Riano</a>
-    <nav class="nav-links" aria-label="站点">
-      <a href="index.html" data-nav="index.html">碎碎念</a>
-      <a href="about.html" data-nav="about.html">关于</a>
-      <a href="friends.html" data-nav="friends.html">友链</a>
-      <a href="contact.html" data-nav="contact.html">联系</a>
-    </nav>
-  </header>
+  <div id="nav-root"></div>
   <main class="wrap" id="main">
-    <section class="hero">
-      <p class="kicker"><span class="star">✦</span>NIGHT NOTES</p>
-      <h1>你好，我是 Riano</h1>
-      <p class="lead">把没处安放的句子，留在夜里。</p>
-      <p class="quote" id="quote">星星还在路上。</p>
-    </section>
-    <h2 class="section-label">最近</h2>
-    <div class="post-list" id="post-list"></div>
+    <header class="page-head">
+      <p class="kicker"><span class="star">✦</span>HOME</p>
+      <h1>项目</h1>
+      <p class="lead">平时写的东西，README 和仓库链接放在这里。</p>
+    </header>
+    <div class="post-list" id="project-list"></div>
   </main>
-  <footer class="site-footer">
-    <span>Riano5589</span>
-    <a href="https://github.com/Riano5589">GitHub</a>
-  </footer>
-  <script src="js/posts.js"></script>
-  <script src="js/site.js"></script>
   <script src="js/stars.js"></script>
+  <script src="js/content.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/pages.js"></script>
 </body>
 </html>
